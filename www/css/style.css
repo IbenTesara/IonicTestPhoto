@@ -1,0 +1,10 @@
+/* Empty. Add your own CSS if you like */
+
+body {
+    background-color: ivory;
+    padding: 10px;
+}
+
+#canvas {
+    border: 1px solid blue;
+}
