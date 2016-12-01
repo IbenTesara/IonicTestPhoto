@@ -2,7 +2,7 @@
 // angular.module is a global place for creating, registering and retrieving Angular modules
 // 'starter' is the name of this angular module example (also set in a <body> attribute in index.html)
 // the 2nd parameter is an array of 'requires'
-angular.module('starter', ['ionic', 'ngCordova', 'ngCordovaOauth', 'auth0', 'angular-storage', 'auth0.lock', 'angular-jwt', 'auth0.auth0']).config(function (lockProvider, angularAuth0Provider) {
+angular.module('starter', ['ionic', 'ngCordova', 'ngCordovaOauth', 'auth0', 'angular-storage', 'auth0.lock', 'angular-jwt', 'auth0.auth0', 'cmGoogleApi']).config(function (lockProvider, angularAuth0Provider, googleClientProvider) {
     lockProvider.init({
         clientID: 'e2vma2Adqgn7Ioyl9nOOzRWnzd0jb0MZ'
         , domain: 'ibenvandeveire.eu.auth0.com'
@@ -10,7 +10,12 @@ angular.module('starter', ['ionic', 'ngCordova', 'ngCordovaOauth', 'auth0', 'ang
     angularAuth0Provider.init({
         clientID: 'e2vma2Adqgn7Ioyl9nOOzRWnzd0jb0MZ'
         , domain: 'ibenvandeveire.eu.auth0.com'
-    })
+    });
+    googleClientProvider.loadPickerLibrary().loadGoogleAuth({
+        cookie_policy: 'single_host_origin'
+        , hosted_domain: 'ibenvandeveire.eu.auth0.com'
+        , fetch_basic_profile: true
+    }).setClientId(' 774519058481-irk8dpphk21ifrvjb29kct97rfkc2mf7.apps.googleusercontent.com ').addApi('oauth2', 'v2');
 }).value('GoogleApp', {
     apiKey: ' AIzaSyDBkcSDlXBhTDyve8f7LTA3tRn6fSxPZFk '
     , clientID: ' 774519058481-irk8dpphk21ifrvjb29kct97rfkc2mf7.apps.googleusercontent.com '
@@ -45,7 +50,6 @@ angular.module('starter', ['ionic', 'ngCordova', 'ngCordovaOauth', 'auth0', 'ang
         lock.on('authenticated', function (authResult) {
             localStorage.setItem('id_token', authResult.idToken);
             authManager.authenticate();
-            gapi.auth.setToken(authManager.getToken());
         });
     }
 
@@ -78,7 +82,7 @@ angular.module('starter', ['ionic', 'ngCordova', 'ngCordovaOauth', 'auth0', 'ang
         , googleLogin: googleLogin
         , authenticateAndGetProfile: authenticateAndGetProfile
     }
-}).controller('CanvasCTRL', function ($scope, $cordovaCamera, $cordovaEmailComposer, $window, store, $location, auth, authService, $rootScope, $log, authManager, $timeout,Drive) {
+}).controller('CanvasCTRL', function ($scope, $cordovaCamera, $cordovaEmailComposer, $window, store, $location, auth, authService, $rootScope, $log, authManager, $timeout, $http, angularAuth0, $cordovaFile) {
     console.log($rootScope.isAuthenticated);
     $scope.login = function () {
         console.log("Hello");
@@ -210,11 +214,69 @@ angular.module('starter', ['ionic', 'ngCordova', 'ngCordovaOauth', 'auth0', 'ang
     }
     //Drive
     $scope.upload = function () {
-        Drive.saveFile("photo.jpg", canvas.toDataURL()).then(function (result) {
-            console.log("FileSaved: successfully.");
-            $state.go('directory');
-        }, function (err) {
-            console.log("FileSaved: error.");
+        var uid = window.localStorage[0];
+        var date = new Date();
+        console.log(uid);
+        console.log(date.toDateString() + ".png");
+        var key = '0q9iicocbki805m';
+        var client = new Dropbox.Client({
+            key: key
         });
+        console.log("Client created");
+        client.authDriver(new Dropbox.AuthDriver.Cordova());
+        console.log("AuthDriver")
+        client.authenticate(function (error) {
+                console.log("Authenticate");
+                if (error) {
+                    console.log('Authentication error ' + error);
+                    return;
+                }
+                if (client.isAuthenticated()) {
+                    console.log('Authenticated, upload started');
+                    var filecontent = "" + canvas.toDataURL();
+                    var blob = dataURItoBlob(filecontent);
+                    var filename = date.toDateString() + ".png";
+                    client.writeFile(filename, blob, function (error, stat) {
+                        if (error) {
+                            return console.log("Uploading error " + error);
+                        }
+                        console.log(stat);
+                        console.log("File saved as revision" + stat.versionTag);
+                    })
+                }
+            })
+            //        $cordovaFile.createFile(cordova.file.dataDirectory, "image.png", canvas.toDataURL, false).then(function (result) {
+            //            console.log(result);
+            //             var dbx = new Dropbox({
+            //            accesToken:'esZUbgG9IGkAAAAAAAAM2gJqXJD3XLEOhsj9w0aKeQfPDm11sCjMtx_TFGetI5Wz'
+            //        });
+            //        dbx.filesUpload({
+            //            arg: result.nativeUrl
+            //        }).then(function (response) {
+            //            console.log(response);
+            //        }).catch(function (error) {
+            //            console.log(error);
+            //        });
+            //        }, function (error) {
+            //            console.log(error);
+            //        })
+            //       
     };
+
+    function dataURItoBlob(dataURI) {
+        // convert base64/URLEncoded data component to raw binary data held in a string
+        var byteString;
+        if (dataURI.split(',')[0].indexOf('base64') >= 0) byteString = atob(dataURI.split(',')[1]);
+        else byteString = unescape(dataURI.split(',')[1]);
+        // separate out the mime component
+        var mimeString = dataURI.split(',')[0].split(':')[1].split(';')[0];
+        // write the bytes of the string to a typed array
+        var ia = new Uint8Array(byteString.length);
+        for (var i = 0; i < byteString.length; i++) {
+            ia[i] = byteString.charCodeAt(i);
+        }
+        return new Blob([ia], {
+            type: mimeString
+        });
+    }
 });
